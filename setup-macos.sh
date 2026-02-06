@@ -82,9 +82,12 @@ fi
 ################################################################################
 # 2. Install Docker Desktop
 ################################################################################
-log_step "Step 2/7: Installing Docker Desktop..."
+log_info "Step 2/6: Installing Docker Desktop..."
 
-if ! command -v docker &> /dev/null; then
+if command -v docker &> /dev/null; then
+    DOCKER_VERSION=$(docker --version)
+    log_warn "Docker already installed: ${DOCKER_VERSION}"
+else
     log_info "Installing Docker Desktop via Homebrew..."
     brew install --cask docker
     
@@ -119,8 +122,12 @@ else
 fi
 
 # Verify Docker installation
-docker --version
-docker compose version
+if docker --version &>/dev/null; then
+    log_info "Docker version: $(docker --version)"
+    docker compose version || log_warn "Docker Compose not available"
+else
+    log_warn "Docker not available. Please install Docker Desktop manually from https://www.docker.com/products/docker-desktop"
+fi
 
 ################################################################################
 # 3. Configure Docker Resources (Recommended Settings)

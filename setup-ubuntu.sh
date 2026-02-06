@@ -44,11 +44,10 @@ fi
 
 # Check Ubuntu version
 if ! grep -q "Ubuntu" /etc/os-release; then
-    log_error "This script is designed for Ubuntu only"
-    exit 1
+    log_warn "This script is designed for Ubuntu, but will attempt to continue"
 fi
 
-UBUNTU_VERSION=$(lsb_release -rs)
+UBUNTU_VERSION=$(lsb_release -rs 2>/dev/null || echo "unknown")
 log_info "Detected Ubuntu ${UBUNTU_VERSION}"
 
 # Configuration
@@ -89,35 +88,42 @@ sudo apt-get install -y \
 ################################################################################
 log_info "Step 3/10: Installing Docker Engine..."
 
-# Add Docker's official GPG key
-sudo install -m 0755 -d /etc/apt/keyrings
-if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+if command -v docker &> /dev/null; then
+    DOCKER_VERSION=$(docker --version)
+    log_warn "Docker already installed: ${DOCKER_VERSION}"
+    log_info "Skipping Docker installation, will configure rootless mode..."
+else
+    # Add Docker's official GPG key
+    sudo install -m 0755 -d /etc/apt/keyrings
+    if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    fi
+
+    # Add Docker repository
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # Verify Docker installation
+    docker --version
+    log_info "Docker installed successfully"
 fi
-
-# Add Docker repository
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Verify Docker installation
-docker --version
 
 ################################################################################
 # 4. Configure Docker Rootless Mode
 ################################################################################
 log_info "Step 4/10: Configuring Docker rootless mode..."
 
-# Check if rootless Docker is already installed
-if command -v dockerd-rootless-setuptool.sh &> /dev/null; then
-    log_info "Docker rootless tools already installed"
-else
-    log_error "dockerd-rootless-setuptool.sh not found. Installing docker-ce-rootless-extras..."
+# Install rootless extras if not present
+if ! command -v dockerd-rootless-setuptool.sh &> /dev/null; then
+    log_info "Installing docker-ce-rootless-extras..."
     sudo apt-get install -y docker-ce-rootless-extras
+else
+    log_info "Docker rootless tools already installed"
 fi
 
 # Disable system Docker daemon (we'll use rootless)
