@@ -1,0 +1,119 @@
+{
+  "dashboard": {
+    "title": "OpenClaw - LLM Cost & Performance Overview",
+    "tags": ["openclaw", "llm", "cost", "security"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    
+    "panels": [
+      {
+        "title": "Daily LLM Costs (USD)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "openclaw_llm_cost_daily_usd",
+            "legendFormat": "Total Daily Cost"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [100], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "Daily Cost Alert"
+        }
+      },
+      
+      {
+        "title": "Cost by Model (USD)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "openclaw_llm_cost_by_model_usd",
+            "legendFormat": "{{ model }}"
+          }
+        ]
+      },
+      
+      {
+        "title": "Request Latency (95th percentile)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(openclaw_llm_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{ model }}"
+          }
+        ]
+      },
+      
+      {
+        "title": "Token Usage by Model",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(openclaw_llm_tokens_total[5m])",
+            "legendFormat": "{{ model }} - {{ type }}"
+          }
+        ]
+      },
+      
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(openclaw_llm_errors_total[5m])",
+            "legendFormat": "{{ model }}"
+          }
+        ]
+      },
+      
+      {
+        "title": "Security Events",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 16},
+        "targets": [
+          {
+            "expr": "openclaw_auth_failed_total",
+            "legendFormat": "Failed Auth"
+          }
+        ]
+      },
+      
+      {
+        "title": "Secrets Expiry (Days)",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 16},
+        "targets": [
+          {
+            "expr": "openclaw_secrets_days_until_expiry",
+            "legendFormat": "Days Until Rotation"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 7, "color": "orange"},
+                {"value": 30, "color": "green"}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

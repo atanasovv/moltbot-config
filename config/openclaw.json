@@ -1,0 +1,238 @@
+{
+  "$schema": "https://docs.openclaw.ai/schema.json",
+  
+  "identity": {
+    "name": "Clawd",
+    "theme": "helpful AI assistant with multi-model intelligence",
+    "emoji": "🦞"
+  },
+  
+  "agents": {
+    "defaults": {
+      "workspace": "/app/workspace",
+      
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-5",
+        "thinking": {
+          "enabled": true,
+          "model": "anthropic/claude-sonnet-4-5"
+        }
+      },
+      
+      "groupChat": {
+        "mentionPatterns": ["@openclaw", "@clawd", "hey clawd"],
+        "requireMention": true
+      }
+    },
+    
+    "list": [
+      {
+        "id": "main",
+        "name": "Main Assistant",
+        "enabled": true,
+        
+        "heartbeat": {
+          "enabled": false,
+          "every": "24h",
+          "prompt": "Good morning! Here's your daily brief.",
+          "target": "last"
+        }
+      }
+    ]
+  },
+  
+  "models": {
+    "providers": {
+      "anthropic": {
+        "apiKey": "/run/secrets/anthropic_api_key",
+        "models": {
+          "claude-sonnet-4-5": {
+            "id": "claude-3-5-sonnet-20241022",
+            "maxTokens": 8192,
+            "thinking": true
+          }
+        }
+      },
+      
+      "openai": {
+        "apiKey": "/run/secrets/openai_api_key",
+        "models": {
+          "gpt-4o": {
+            "id": "gpt-4o",
+            "maxTokens": 16384
+          },
+          "gpt-4o-mini": {
+            "id": "gpt-4o-mini",
+            "maxTokens": 16384
+          },
+          "o1": {
+            "id": "o1",
+            "maxTokens": 100000,
+            "reasoning": true
+          },
+          "o1-mini": {
+            "id": "o1-mini",
+            "maxTokens": 65536,
+            "reasoning": true
+          }
+        }
+      },
+      
+      "google": {
+        "apiKey": "/run/secrets/google_api_key",
+        "models": {
+          "gemini-2.0-flash": {
+            "id": "gemini-2.0-flash",
+            "maxTokens": 8192,
+            "multimodal": true,
+            "vision": true
+          }
+        }
+      }
+    }
+  },
+  
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "/run/secrets/telegram_bot_token",
+      
+      "dmPolicy": "pairing",
+      
+      "allowFrom": [],
+      
+      "groups": {
+        "*": {
+          "requireMention": true
+        }
+      },
+      
+      "webhookUrl": null,
+      "webhookSecret": null,
+      
+      "markdown": {
+        "enabled": true
+      },
+      
+      "actions": {
+        "reactions": true,
+        "sendMessage": true,
+        "deleteMessage": false,
+        "sticker": false
+      },
+      
+      "reactionLevel": "minimal",
+      "reactionNotifications": "own"
+    }
+  },
+  
+  "gateway": {
+    "mode": "local",
+    "bind": "0.0.0.0",
+    "port": 18789,
+    "auth": "token",
+    "tailscale": {
+      "enabled": false
+    }
+  },
+  
+  "session": {
+    "dmScope": "global",
+    "agentToAgent": {
+      "maxPingPongTurns": 5
+    }
+  },
+  
+  "messages": {
+    "ackReaction": "👀",
+    "ackReactionScope": "all",
+    "groupChat": {
+      "mentionPatterns": ["@openclaw", "@clawd"]
+    }
+  },
+  
+  "browser": {
+    "evaluateEnabled": false,
+    "snapshotDefaults": {
+      "mode": "text"
+    }
+  },
+  
+  "logging": {
+    "level": "info",
+    "redactSensitive": "on",
+    "format": "json"
+  },
+  
+  "security": {
+    "sandbox": {
+      "enabled": true,
+      "runtime": "runsc",
+      "isolation": "strong",
+      "networkAccess": "restricted"
+    },
+    
+    "rateLimit": {
+      "enabled": true,
+      "perUser": {
+        "messages": 50,
+        "window": "1h"
+      },
+      "global": {
+        "messages": 1000,
+        "window": "1h"
+      }
+    },
+    
+    "contentFiltering": {
+      "enabled": true,
+      "blockPatterns": [],
+      "allowPatterns": []
+    }
+  },
+  
+  "cost": {
+    "tracking": {
+      "enabled": true,
+      "currency": "USD"
+    },
+    
+    "limits": {
+      "daily": 100,
+      "monthly": 1000,
+      "perUser": {
+        "daily": 10,
+        "monthly": 100
+      }
+    },
+    
+    "alerts": {
+      "enabled": true,
+      "thresholds": {
+        "daily": 80,
+        "monthly": 800
+      }
+    }
+  },
+  
+  "skills": {
+    "install": {
+      "nodeManager": "pnpm",
+      "autoInstall": false
+    },
+    
+    "allowed": [
+      "@openclaw/web-search",
+      "@openclaw/file-operations",
+      "@openclaw/code-execution"
+    ]
+  },
+  
+  "ui": {
+    "seamColor": "#FF6B6B",
+    "assistant": {
+      "name": "Clawd",
+      "avatar": "🦞"
+    }
+  }
+}

@@ -1,0 +1,129 @@
+global:
+  resolve_timeout: 5m
+  smtp_from: 'openclaw-alerts@example.com'
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_auth_username: 'alerts@example.com'
+  smtp_auth_password: 'your-password-here'
+
+# Templates for alerts
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: false
+    
+    # Cost alerts
+    - match:
+        component: cost
+      receiver: 'cost-alerts'
+      group_wait: 30s
+      repeat_interval: 6h
+    
+    # Security alerts
+    - match:
+        component: security
+      receiver: 'security-alerts'
+      group_wait: 5s
+      repeat_interval: 1h
+    
+    # Performance alerts
+    - match:
+        component: performance
+      receiver: 'performance-alerts'
+      repeat_interval: 4h
+
+# Receivers configuration
+receivers:
+  - name: 'default'
+    # Fallback receiver - log to console
+    webhook_configs:
+      - url: 'http://localhost:9093/api/v1/alerts'
+  
+  - name: 'critical'
+    # Multiple notification channels for critical alerts
+    email_configs:
+      - to: 'admin@example.com'
+        subject: '[CRITICAL] OpenClaw Alert: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>Critical Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ .CommonAnnotations.startsAt }}</p>
+    
+    # Optional: Telegram notifications
+    # webhook_configs:
+    #   - url: 'https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendMessage'
+    #     send_resolved: true
+    
+    # Optional: Slack notifications
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #     channel: '#openclaw-alerts'
+    #     title: 'OpenClaw Critical Alert'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+  
+  - name: 'cost-alerts'
+    email_configs:
+      - to: 'admin@example.com'
+        subject: '[COST] OpenClaw: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>Cost Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ .CommonAnnotations.startsAt }}</p>
+          <p><em>Review cost metrics in Grafana: http://localhost:3000</em></p>
+  
+  - name: 'security-alerts'
+    email_configs:
+      - to: 'security@example.com'
+        subject: '[SECURITY] OpenClaw: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>Security Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ .CommonAnnotations.startsAt }}</p>
+          <p style="color: red;"><em>Immediate action may be required</em></p>
+  
+  - name: 'performance-alerts'
+    email_configs:
+      - to: 'admin@example.com'
+        subject: '[PERFORMANCE] OpenClaw: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>Performance Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ .CommonAnnotations.startsAt }}</p>
+
+# Inhibition rules - prevent notification spam
+inhibit_rules:
+  # If OpenClaw is down, don't alert on everything else
+  - source_match:
+      alertname: 'OpenClawDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['cluster', 'service']
+  
+  # If critical alert is firing, suppress warnings
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
