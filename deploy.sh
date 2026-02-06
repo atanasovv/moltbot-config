@@ -33,29 +33,16 @@ echo "  Image:   ${DOCKERHUB_IMAGE}"
 echo "  Version: ${IMAGE_VERSION}"
 echo ""
 
-# Checho "✓ Secrets already initialized"
-fi
-
-# Deploy image based on source
-if [[ "${USE_DOCKERHUB}" == "true" ]]; then
-    echo ""
-    echo "Pulling Docker image from Docker Hub..."
-    if docker pull "${DOCKERHUB_IMAGE}"; then
-        docker tag "${DOCKERHUB_IMAGE}" openclaw:secure
-        echo "✓ Image pulled: ${DOCKERHUB_IMAGE}"
-    else
-        echo "Error: Failed to pull ${DOCKERHUB_IMAGE}"
-        echo "Available tags at: https://hub.docker.com/r/${DOCKERHUB_USER}/openclaw/tags"
-        exit 1
-    fi
-elif ! docker images | grep -q "openclaw.*secure"; then
+# Check secrets exist
+if [[ ! -d "secrets" ]] || [[ ! -f "secrets/telegram_bot_token.txt" ]]; then
+    echo "Error: Secrets not initialized"
+    echo "Run: ./init-secrets.sh"
+    exit 1
 else
     echo "✓ Secrets already initialized"
 fi
 
-# Check if we should use Docker Hub image or build locally
-USE_DOCKERHUB=${USE_DOCKERHUB:-false}
-DOCKERHUB_IMAGE="vladislav2502/openclaw:secure"
+# Deploy image based on source
 
 if [[ "${USE_DOCKERHUB}" == "true" ]]; then
     echo ""
