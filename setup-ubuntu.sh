@@ -18,29 +18,19 @@ set -euo pipefail
 # Requires: sudo privileges
 ################################################################################
 
-# Color output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Source common functions
+if [[ -f "${SCRIPT_DIR}/setup-common.sh" ]]; then
+    source "${SCRIPT_DIR}/setup-common.sh"
+else
+    echo "Error: setup-common.sh not found"
+    exit 1
+fi
 
 # Check if running as root
-if [[ $EUID -eq 0 ]]; then
-   log_error "This script should NOT be run as root (it will use sudo when needed)"
-   exit 1
-fi
+check_not_root
 
 # Check Ubuntu version
 if ! grep -q "Ubuntu" /etc/os-release; then
@@ -128,6 +118,7 @@ fi
 
 # Disable system Docker daemon (we'll use rootless)
 sudo systemctl disable --now docker.service docker.socket 2>/dev/null || true
+sleep 2
 
 # Install rootless Docker for current user
 if [[ ! -f "${OPENCLAW_HOME}/.docker/config.json" ]] || ! systemctl --user is-active --quiet docker.service; then
@@ -136,8 +127,8 @@ if [[ ! -f "${OPENCLAW_HOME}/.docker/config.json" ]] || ! systemctl --user is-ac
     # Enable lingering for user (keeps user services running after logout)
     sudo loginctl enable-linger "${OPENCLAW_USER}"
     
-    # Install rootless Docker
-    dockerd-rootless-setuptool.sh install
+    # Install rootless Docker (use --force to override rootful Docker check)
+    dockerd-rootless-setuptool.sh install --force
     
     # Add Docker environment to shell profile
     if ! grep -q "DOCKER_HOST=" "${OPENCLAW_HOME}/.bashrc"; then
@@ -366,33 +357,8 @@ fi
 ################################################################################
 # Final Setup
 ################################################################################
-log_info "Creating OpenClaw directory structure..."
-mkdir -p "${OPENCLAW_DIR}"/{config,workspace,secrets,backups,logs}
-chmod 700 "${OPENCLAW_DIR}/secrets"
-
-# Create a helper script to check secret expiry
-cat > "${OPENCLAW_DIR}/check-setup.sh" << 'EOF'
-#!/bin/bash
-echo "=== OpenClaw Setup Status ==="
-echo ""
-echo "Docker (rootless):"
-systemctl --user status docker.service | head -n 3
-echo ""
-echo "Docker runtime:"
-docker info | grep -E "Runtime|Security Options" || true
-echo ""
-echo "Node.js version:"
-node --version
-echo ""
-echo "Firewall status:"
-sudo ufw status | head -n 10
-echo ""
-echo "Tailscale status:"
-tailscale status 2>/dev/null | head -n 5 || echo "Not connected"
-echo ""
-echo "=== Setup Complete ==="
-EOF
-chmod +x "${OPENCLAW_DIR}/check-setup.sh"
+create_openclaw_dirs "${OPENCLAW_DIR}"
+create_check_setup_script "${OPENCLAW_DIR}/check-setup.sh" "ubuntu"
 
 ################################################################################
 # Summary

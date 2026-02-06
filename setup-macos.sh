@@ -2,42 +2,29 @@
 set -euo pipefail
 
 ################################################################################
-# OpenClaw macOS Setup Script
+# OpenClaw macOS Development Environment Setup Script
 # 
 # This script installs and configures a macOS development environment for OpenClaw:
 # - Homebrew package manager
 # - Docker Desktop
-# - Node.js 22.12.0+
+# - Node.js 22+ (LTS)
 # - Tailscale for secure remote access
-# - Service user configuration (optional)
-# - Development dependencies
+# - Development tools and utilities
 #
 # Tested on: macOS Sonoma (14.x), macOS Sequoia (15.x)
-# Requires: Administrator privileges
+# Requires: Administrator access
 ################################################################################
 
-# Color output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-log_step() {
-    echo -e "${BLUE}[STEP]${NC} $1"
-}
+# Source common functions
+if [[ -f "${SCRIPT_DIR}/setup-common.sh" ]]; then
+    source "${SCRIPT_DIR}/setup-common.sh"
+else
+    echo "Error: setup-common.sh not found"
+    exit 1
+fi
 
 # Check if running on macOS
 if [[ "$(uname)" != "Darwin" ]]; then
@@ -57,26 +44,23 @@ NODE_VERSION="22"
 ################################################################################
 # 1. Install Homebrew
 ################################################################################
-log_step "Step 1/7: Installing Homebrew..."
+log_info "Step 1/6: Installing Homebrew package manager..."
 
-if ! command -v brew &> /dev/null; then
+if check_command_exists brew; then
+    log_warn "Homebrew already installed: $(brew --version | head -n1)"
+    log_info "Updating Homebrew..."
+    brew update || log_warn "Homebrew update failed, but continuing..."
+else
     log_info "Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     
     # Add Homebrew to PATH for Apple Silicon Macs
     if [[ -f "/opt/homebrew/bin/brew" ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
-        
-        # Add to shell profile if not already there
-        if ! grep -q "eval.*homebrew.*shellenv" "${OPENCLAW_HOME}/.zshrc" 2>/dev/null; then
-            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${OPENCLAW_HOME}/.zshrc"
-        fi
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${OPENCLAW_HOME}/.zprofile"
     fi
     
-    log_info "Homebrew installed"
-else
-    log_info "Homebrew already installed"
-    brew update
+    log_info "Homebrew installed successfully"
 fi
 
 ################################################################################
@@ -84,41 +68,24 @@ fi
 ################################################################################
 log_info "Step 2/6: Installing Docker Desktop..."
 
-if command -v docker &> /dev/null; then
-    DOCKER_VERSION=$(docker --version)
-    log_warn "Docker already installed: ${DOCKER_VERSION}"
-else
-    log_info "Installing Docker Desktop via Homebrew..."
+if ! check_docker_installed; then
     brew install --cask docker
     
-    log_warn "Docker Desktop installed. Please:"
-    log_warn "  1. Open Docker Desktop from Applications"
-    log_warn "  2. Complete the initial setup"
-    log_warn "  3. Ensure Docker is running (whale icon in menu bar)"
-    log_warn ""
-    read -p "Press Enter after Docker Desktop is running..."
+    log_info "Docker Desktop installed. Starting Docker..."
+    open -a Docker
     
-    # Wait for Docker to be ready
-    log_info "Waiting for Docker to be ready..."
+    # Wait for Docker to start
+    log_info "Waiting for Docker daemon to start (this may take a minute)..."
     for i in {1..30}; do
         if docker ps &>/dev/null; then
-            log_info "Docker is ready"
+            log_info "Docker is running"
             break
         fi
-        echo -n "."
+        if [[ $i -eq 30 ]]; then
+            log_warn "Docker daemon did not start within 30 seconds. Please start Docker Desktop manually."
+        fi
         sleep 2
     done
-    echo ""
-else
-    log_info "Docker already installed"
-    
-    if docker ps &>/dev/null; then
-        log_info "Docker is running"
-    else
-        log_warn "Docker is installed but not running. Please start Docker Desktop."
-        open -a Docker
-        read -p "Press Enter after Docker Desktop is running..."
-    fi
 fi
 
 # Verify Docker installation
@@ -130,393 +97,96 @@ else
 fi
 
 ################################################################################
-# 3. Configure Docker Resources (Recommended Settings)
+# 3. Install Node.js
 ################################################################################
-log_step "Step 3/7: Checking Docker resource allocation..."
+log_info "Step 3/6: Installing Node.js ${NODE_VERSION}..."
 
-log_info "Recommended Docker Desktop settings for OpenClaw:"
-echo "  - CPUs: 4 (minimum 2)"
-echo "  - Memory: 4GB (minimum 2GB)"
-echo "  - Disk: 64GB"
-echo ""
-log_info "Configure via: Docker Desktop → Settings → Resources"
+install_or_upgrade_node "${NODE_VERSION}" \
+    "brew install node@${NODE_VERSION} && brew link --overwrite node@${NODE_VERSION}"
+
+install_pnpm
 
 ################################################################################
-# 4. Install Node.js 22.12.0+
+# 4. Install Development Tools
 ################################################################################
-log_step "Step 4/7: Installing Node.js ${NODE_VERSION}..."
+log_info "Step 4/6: Installing development tools..."
 
-if command -v node &> /dev/null; then
-    CURRENT_NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
-    if [[ "${CURRENT_NODE_VERSION}" -ge "${NODE_VERSION}" ]]; then
-        log_info "Node.js $(node --version) already installed"
-    else
-        log_warn "Upgrading Node.js from v${CURRENT_NODE_VERSION} to v${NODE_VERSION}..."
-        brew upgrade node || brew install node@${NODE_VERSION}
-    fi
-else
-    log_info "Installing Node.js..."
-    brew install node@${NODE_VERSION}
-    
-    # Link the specific version
-    brew link node@${NODE_VERSION}
-fi
-
-# Verify Node.js installation
-node --version
-npm --version
-
-# Install pnpm globally
-if ! command -v pnpm &> /dev/null; then
-    log_info "Installing pnpm..."
-    npm install -g pnpm
-fi
-
-pnpm --version
-
-################################################################################
-# 5. Install Tailscale
-################################################################################
-log_step "Step 5/7: Installing Tailscale..."
-
-if ! command -v tailscale &> /dev/null; then
-    log_info "Installing Tailscale..."
-    brew install --cask tailscale
-    
-    log_info "Tailscale installed. To connect:"
-    log_info "  1. Open Tailscale from Applications"
-    log_info "  2. Sign in with your Tailscale account"
-    log_info "  3. Or run: open -a Tailscale"
-else
-    log_info "Tailscale already installed"
-    
-    if pgrep -x "Tailscale" > /dev/null; then
-        log_info "Tailscale is running"
-    else
-        log_warn "Tailscale is installed but not running"
-        log_info "Opening Tailscale..."
-        open -a Tailscale || true
-    fi
-fi
-
-################################################################################
-# 6. Install Development Tools
-################################################################################
-log_step "Step 6/7: Installing development tools..."
-
-# Install useful development tools
-TOOLS=(
-    "jq"          # JSON processor
-    "git"         # Version control
-    "curl"        # HTTP client
-    "wget"        # File downloader
-    "tree"        # Directory structure viewer
+BREW_TOOLS=(
+    "git"
+    "jq"
+    "wget"
+    "curl"
 )
 
-for tool in "${TOOLS[@]}"; do
-    if ! command -v "${tool}" &> /dev/null; then
-        log_info "Installing ${tool}..."
-        brew install "${tool}"
+for tool in "${BREW_TOOLS[@]}"; do
+    if brew list "$tool" &>/dev/null; then
+        log_warn "$tool already installed"
     else
-        log_info "${tool} already installed"
+        log_info "Installing $tool..."
+        brew install "$tool" || log_warn "Failed to install $tool, but continuing..."
     fi
 done
 
 ################################################################################
-# 7. Setup OpenClaw Directory Structure
+# 5. Install Tailscale
 ################################################################################
-log_step "Step 7/7: Setting up OpenClaw directories..."
+log_info "Step 5/6: Installing Tailscale..."
 
-mkdir -p "${OPENCLAW_DIR}"/{config,workspace,secrets,backups,logs}
-chmod 700 "${OPENCLAW_DIR}/secrets"
-
-log_info "Directory structure created:"
-tree -L 2 "${OPENCLAW_DIR}" 2>/dev/null || ls -la "${OPENCLAW_DIR}"
-
-################################################################################
-# Create Helper Scripts
-################################################################################
-log_info "Creating helper scripts..."
-
-# Check setup status script
-cat > "${OPENCLAW_DIR}/check-setup.sh" << 'EOF'
-#!/bin/bash
-echo "=== OpenClaw macOS Setup Status ==="
-echo ""
-echo "Docker Desktop:"
-docker version --format 'Version: {{.Server.Version}}' 2>/dev/null || echo "Not running"
-docker info 2>/dev/null | grep -E "CPUs:|Total Memory:|Operating System:" || true
-echo ""
-echo "Docker Compose:"
-docker compose version
-echo ""
-echo "Node.js:"
-node --version
-echo ""
-echo "npm:"
-npm --version
-echo ""
-echo "pnpm:"
-pnpm --version
-echo ""
-echo "Tailscale:"
-if pgrep -x "Tailscale" > /dev/null; then
-    echo "Status: Running"
-else
-    echo "Status: Not running"
-fi
-echo ""
-echo "OpenClaw directories:"
-ls -la ~/.openclaw/ 2>/dev/null || echo "Not created yet"
-echo ""
-echo "=== Setup Complete ==="
-EOF
-chmod +x "${OPENCLAW_DIR}/check-setup.sh"
-
-# Quick start script
-cat > "${OPENCLAW_DIR}/quick-start.sh" << 'EOF'
-#!/bin/bash
-set -e
-
-echo "=== OpenClaw Quick Start ==="
-echo ""
-
-# Check if Docker is running
-if ! docker ps &>/dev/null; then
-    echo "Error: Docker is not running. Please start Docker Desktop."
-    open -a Docker
-    exit 1
-fi
-
-# Navigate to OpenClaw directory
-cd ~/.openclaw
-
-# Initialize secrets if not done
-if [[ ! -f secrets/.initialized ]]; then
-    echo "Initializing secrets..."
-    ./init-secrets.sh
-fi
-
-# Start OpenClaw with Docker Compose
-echo "Starting OpenClaw..."
-docker compose up -d
-
-echo ""
-echo "OpenClaw is starting!"
-echo "Check status: docker compose ps"
-echo "View logs: docker compose logs -f"
-echo "Stop: docker compose down"
-echo ""
-EOF
-chmod +x "${OPENCLAW_DIR}/quick-start.sh"
-
-# Environment setup script
-cat > "${OPENCLAW_DIR}/setup-env.sh" << 'EOF'
-#!/bin/bash
-# Source this file to set up OpenClaw environment variables
-# Usage: source ~/.openclaw/setup-env.sh
-
-export OPENCLAW_HOME="${HOME}/.openclaw"
-export OPENCLAW_CONFIG_DIR="${OPENCLAW_HOME}/config"
-export OPENCLAW_WORKSPACE_DIR="${OPENCLAW_HOME}/workspace"
-export OPENCLAW_SECRETS_DIR="${OPENCLAW_HOME}/secrets"
-
-# Docker settings (if using rootless or custom socket)
-# export DOCKER_HOST="unix://${HOME}/.docker/run/docker.sock"
-
-# OpenClaw settings
-export OPENCLAW_STATE_DIR="${OPENCLAW_HOME}"
-export OPENCLAW_LOG_LEVEL="info"
-
-# Add to PATH
-export PATH="${OPENCLAW_HOME}/bin:${PATH}"
-
-echo "OpenClaw environment configured"
-echo "OPENCLAW_HOME: ${OPENCLAW_HOME}"
-EOF
-
-# Add environment setup to shell profile if not already there
-if ! grep -q "openclaw/setup-env.sh" "${OPENCLAW_HOME}/.zshrc" 2>/dev/null; then
-    cat >> "${OPENCLAW_HOME}/.zshrc" << 'EOF'
-
-# OpenClaw environment (optional - uncomment to auto-load)
-# source ~/.openclaw/setup-env.sh
-EOF
+tailscale_status=$(check_tailscale; echo $?)
+if [[ $tailscale_status -eq 2 ]]; then
+    brew install --cask tailscale
+    log_info "Tailscale installed. To connect to your Tailscale network:"
+    log_info "  1. Open Tailscale from Applications"
+    log_info "  2. Sign in with your account"
+    log_info "  Or run: sudo tailscale up"
+elif [[ $tailscale_status -eq 1 ]]; then
+    log_warn "Tailscale is installed but not connected. Run: sudo tailscale up"
 fi
 
 ################################################################################
-# Configure git-crypt for Secret Management (Optional)
+# 6. Install git-crypt for secrets encryption
 ################################################################################
-log_info "Installing git-crypt for encrypted secret storage..."
+log_info "Step 6/6: Installing git-crypt for secrets encryption..."
 
-if ! command -v git-crypt &> /dev/null; then
-    brew install git-crypt
-    log_info "git-crypt installed"
-else
-    log_info "git-crypt already installed"
-fi
-
-cat > "${OPENCLAW_DIR}/.gitattributes" << 'EOF'
-# Encrypt secret files with git-crypt
-secrets/** filter=git-crypt diff=git-crypt
-*.key filter=git-crypt diff=git-crypt
-*.pem filter=git-crypt diff=git-crypt
-.env filter=git-crypt diff=git-crypt
-EOF
-
-cat > "${OPENCLAW_DIR}/.gitignore" << 'EOF'
-# OpenClaw local files
-workspace/
-logs/
-backups/
-*.log
-
-# Node.js
-node_modules/
-npm-debug.log*
-
-# Docker
-.env.local
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-EOF
+install_git_crypt "brew install git-crypt"
 
 ################################################################################
-# Security Recommendations
+# Final Setup
 ################################################################################
-cat > "${OPENCLAW_DIR}/SECURITY-MACOS.md" << 'EOF'
-# macOS Security Recommendations for OpenClaw
-
-## Firewall Configuration
-
-Enable macOS firewall:
-```bash
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on
-```
-
-## FileVault Encryption
-
-Enable full disk encryption:
-1. System Settings → Privacy & Security → FileVault
-2. Turn On FileVault
-
-## Gatekeeper
-
-Ensure Gatekeeper is enabled:
-```bash
-sudo spctl --master-enable
-```
-
-## Secret Management
-
-### Using git-crypt (Development)
-
-Initialize git-crypt in your OpenClaw directory:
-```bash
-cd ~/.openclaw
-git init
-git-crypt init
-git-crypt add-gpg-user YOUR_GPG_KEY_ID
-```
-
-All files in `secrets/` will be automatically encrypted when committed.
-
-### Manual Secret Encryption
-
-For sensitive files, use encryption:
-```bash
-# Encrypt a file
-openssl enc -aes-256-cbc -salt -in secrets/api-keys.txt -out secrets/api-keys.txt.enc
-
-# Decrypt a file
-openssl enc -aes-256-cbc -d -in secrets/api-keys.txt.enc -out secrets/api-keys.txt
-```
-
-## Backup Strategy
-
-Use Time Machine or automated backups:
-```bash
-# Manual backup
-rsync -av --exclude 'logs/' ~/.openclaw/ ~/Backups/openclaw-$(date +%Y%m%d)/
-```
-
-## Updates
-
-Keep system updated:
-- Enable automatic updates: System Settings → General → Software Update
-- Check for updates regularly
-
-## Docker Security
-
-Configure Docker Desktop security:
-1. Docker Desktop → Settings → General
-2. Enable "Use kernel networking for UDP" (if available)
-3. Resources → Advanced: Set appropriate limits
-4. Enable "gRPC FUSE for file sharing" for better performance
-
-## Monitoring
-
-Install and configure monitoring tools:
-```bash
-# System monitoring
-brew install htop
-brew install glances
-
-# Network monitoring
-brew install wireshark  # GUI network analyzer
-```
-EOF
+create_openclaw_dirs "${OPENCLAW_DIR}"
+create_check_setup_script "${OPENCLAW_DIR}/check-setup.sh" "macos"
 
 ################################################################################
 # Summary
 ################################################################################
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
-log_info "macOS setup complete!"
+log_info "macOS development environment setup complete!"
 echo "═══════════════════════════════════════════════════════════════════"
 echo ""
 echo "Installed components:"
-echo "  ✓ Homebrew $(brew --version | head -n1)"
-echo "  ✓ Docker Desktop $(docker --version)"
-echo "  ✓ Node.js $(node --version)"
-echo "  ✓ pnpm $(pnpm --version)"
-echo "  ✓ Tailscale"
-echo "  ✓ git-crypt (for encrypted secrets)"
-echo "  ✓ Development tools (jq, git, curl, wget, tree)"
-echo ""
-echo "OpenClaw directory: ${OPENCLAW_DIR}"
-echo ""
-echo "Helper scripts created:"
-echo "  ${OPENCLAW_DIR}/check-setup.sh    - Check installation status"
-echo "  ${OPENCLAW_DIR}/quick-start.sh    - Quick start OpenClaw"
-echo "  ${OPENCLAW_DIR}/setup-env.sh      - Environment variables"
+echo "  ✓ Homebrew $(brew --version 2>/dev/null | head -n1 | cut -d' ' -f2 || echo 'N/A')"
+echo "  ✓ Docker Desktop $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',' || echo 'N/A')"
+echo "  ✓ Node.js $(node --version 2>/dev/null || echo 'N/A')"
+echo "  ✓ pnpm $(pnpm --version 2>/dev/null || echo 'N/A')"
+echo "  ✓ Development tools (git, jq, wget, curl)"
+echo "  ✓ Tailscale VPN"
+echo "  ✓ git-crypt (secrets encryption)"
 echo ""
 echo "Next steps:"
 echo "  1. Ensure Docker Desktop is running"
-echo "  2. Connect to Tailscale (optional): open -a Tailscale"
-echo "  3. Clone OpenClaw configuration to ${OPENCLAW_DIR}"
-echo "  4. Run: cd ${OPENCLAW_DIR} && ./init-secrets.sh"
-echo "  5. Deploy: docker compose up -d"
+echo "  2. Connect to Tailscale (if needed)"
+echo "  3. Clone OpenClaw config repository"
+echo "  4. Run init-secrets.sh to configure API keys"
+echo "  5. Use docker-compose.yml for local development"
 echo ""
-echo "Security recommendations:"
-echo "  - Enable FileVault (full disk encryption)"
-echo "  - Enable macOS Firewall"
-echo "  - Use git-crypt for secret management"
-echo "  - Review: ${OPENCLAW_DIR}/SECURITY-MACOS.md"
+echo "Check setup status: ${OPENCLAW_DIR}/check-setup.sh"
 echo ""
-echo "Check setup: ${OPENCLAW_DIR}/check-setup.sh"
+echo "Development notes:"
+echo "  - Use Docker Desktop for container management"
+echo "  - git-crypt available for encrypting secrets in Git"
+echo "  - Tailscale provides secure access to remote servers"
+echo "  - All development files in: ${OPENCLAW_DIR}"
 echo ""
-log_info "For daily use, source the environment:"
-log_info "  source ~/.openclaw/setup-env.sh"
+log_info "Ready for OpenClaw development!"
 echo "═══════════════════════════════════════════════════════════════════"
