@@ -42,11 +42,16 @@
 
   ✅ moonshot_api_key.txt    → sk-your-real-key (REQUIRED)
   ✅ telegram_bot_token.txt  → 123456789:ABC... (REQUIRED)
-  ⚠️  anthropic_api_key.txt  → sk-ant-dummy... (dummy ok)
-  ⚠️  openai_api_key.txt     → sk-dummy... (dummy ok)
-  ⚠️  google_api_key.txt     → AIzadummy... (dummy ok)
+  ⚠️  anthropic_api_key.txt  → Press Enter to skip (auto-dummy)
+  ⚠️  openai_api_key.txt     → Press Enter to skip (auto-dummy)
+  ⚠️  google_api_key.txt     → Press Enter to skip (auto-dummy)
 
-  Create dummy secrets:
+  EASY WAY - Just press Enter to skip!
+  $ ./init-secrets.sh
+  → Press Enter for providers you don't need
+  → Script creates dummy secrets automatically
+
+  Manual dummy secrets (if needed):
   $ echo "sk-ant-dummy-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" > secrets/anthropic_api_key.txt
   $ echo "sk-dummy-not-used-12345678901234567890" > secrets/openai_api_key.txt
   $ echo "AIzadummy-not-used-1234567890123456789" > secrets/google_api_key.txt

@@ -35,44 +35,41 @@ If you **already have** all prerequisites (Docker, Node.js, etc.), skip directly
 ./deploy.sh
 ```
 
-### Option 3: Skip Optional Secrets
+### Option 3: Skip Optional Secrets (EASY!)
 
-If you don't want to use all LLM providers, you can:
+If you don't want to use all LLM providers, **just press Enter** during initialization:
 
-#### A. Comment Out Models in Configuration
+```bash
+./init-secrets.sh
 
-Edit `config/openclaw.json` and remove unwanted providers:
+# When prompted, press Enter to skip providers you don't need:
+# Anthropic: [press Enter to skip] ← Dummy secret created automatically
+# OpenAI: [press Enter to skip] ← Dummy secret created automatically
+# Google: [press Enter to skip] ← Dummy secret created automatically
+# Moonshot: sk-your-real-key ← Enter your real key
+# Telegram: 123456789:ABC... ← REQUIRED - cannot skip
+```
+
+The script will automatically create dummy secrets for skipped providers!
+
+#### Alternative: Comment Out Models in Configuration
+
+You can also edit `config/openclaw.json` and remove unwanted providers:
 
 ```json
 {
   "models": {
     "providers": {
-      "anthropic": { ... },
-      // Remove providers you don't need:
-      // "openai": { ... },
-      // "google": { ... },
-      "moonshot": { ... }
+      // "anthropic": { ... },  // Commented out
+      // "openai": { ... },     // Commented out
+      // "google": { ... },     // Commented out
+      "moonshot": { ... }       // Only this one enabled
     }
   }
 }
 ```
 
-#### B. Provide Dummy Secrets
-
-For secrets you won't use, provide dummy values during init:
-
-```bash
-./init-secrets.sh
-
-# When prompted for unused keys, enter dummy values:
-# Anthropic: sk-ant-dummy123... (if not using)
-# OpenAI: sk-dummy123... (if not using)
-# Google: AIzadummy123... (if not using)
-# Moonshot: sk-dummy123... (if not using - your primary choice)
-# Telegram: <your real token>
-```
-
-**Note**: Docker Compose requires all secrets to exist, even if unused.
+**Note**: Docker Compose requires all secret files to exist (script creates dummies automatically when you skip).
 
 ### Option 4: Minimal Setup (Kimi-k2 Only)
 
@@ -155,6 +152,18 @@ Edit `config/openclaw.json`:
 #### Step 5: Create Dummy Secrets
 
 Since Docker Compose requires all secrets, create dummy files:
+#### Step 5: Initialize Secrets (Easy Way!)
+
+Just run the init script and press Enter to skip providers:
+
+```bash
+./init-secrets.sh
+
+# Press Enter for providers you don't need
+# Enter real keys only for Moonshot and Telegram
+```
+
+**Manual Alternative** (if you prefer):
 
 ```bash
 mkdir -p secrets
@@ -172,9 +181,6 @@ echo "123456789:your-real-telegram-token-here" > secrets/telegram_bot_token.txt
 # Set permissions
 chmod 600 secrets/*.txt
 ```
-
-#### Step 6: Deploy
-
 ```bash
 ./deploy.sh
 ```

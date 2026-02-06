@@ -88,12 +88,25 @@ Successfully integrated **Moonshot AI's Kimi-k2** model with 128K context window
 
 ### Minimal Setup (Kimi-k2 Only)
 
-See the new **SKIP-STEPS-GUIDE.md** for detailed instructions on:
-- Skipping unnecessary setup steps
-- Using only Kimi-k2 model
-- Creating dummy secrets for unused providers
+**Easy Way** - Just press Enter to skip providers!
 
-Quick version:
+```bash
+# 1. Run setup
+./setup-ubuntu.sh  # or ./setup-macos.sh
+
+# 2. Initialize secrets (press Enter to skip unused providers)
+./init-secrets.sh
+# → Press Enter for Anthropic (skipped)
+# → Press Enter for OpenAI (skipped)
+# → Press Enter for Google (skipped)
+# → Enter real Moonshot key
+# → Enter real Telegram token
+
+# 3. Deploy
+./deploy.sh
+```
+
+**Manual Way** (see SKIP-STEPS-GUIDE.md for details):
 
 ```bash
 # 1. Install Docker (if not already installed)
@@ -107,16 +120,10 @@ mkdir -p ~/.openclaw/{config,workspace,logs,secrets}
 # 3. Get configuration files
 # (copy from this repo)
 
-# 4. Create dummy secrets for unused providers
-echo "sk-ant-dummy..." > secrets/anthropic_api_key.txt
-echo "sk-dummy..." > secrets/openai_api_key.txt
-echo "AIzadummy..." > secrets/google_api_key.txt
+# 4. Initialize secrets (press Enter to skip!)
+./init-secrets.sh
 
-# 5. Add your REAL Moonshot and Telegram keys
-echo "sk-your-real-moonshot-key" > secrets/moonshot_api_key.txt
-echo "123456789:your-telegram-token" > secrets/telegram_bot_token.txt
-
-# 6. Deploy
+# 5. Deploy
 ./deploy.sh
 ```
 

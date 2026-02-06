@@ -102,16 +102,26 @@ validate_moonshot_key() {
 read_secret() {
     local prompt="$1"
     local validator="$2"
+    local allow_skip="${3:-false}"
     local secret=""
     local valid=false
     
     while [[ "${valid}" == "false" ]]; do
-        read -r -s -p "${prompt}: " secret
+        if [[ "${allow_skip}" == "true" ]]; then
+            read -r -s -p "${prompt} (press Enter to skip): " secret
+        else
+            read -r -s -p "${prompt}: " secret
+        fi
         echo ""
         
         if [[ -z "${secret}" ]]; then
-            log_warn "Secret cannot be empty. Try again."
-            continue
+            if [[ "${allow_skip}" == "true" ]]; then
+                echo "SKIP"
+                return 0
+            else
+                log_warn "Secret cannot be empty. Try again."
+                continue
+            fi
         fi
         
         if ${validator} "${secret}"; then
@@ -152,6 +162,8 @@ echo "  - Secrets are stored in: ${SECRETS_DIR}"
 echo "  - Directory permissions: 700 (owner only)"
 echo "  - Secrets will expire in ${ROTATION_DAYS} days"
 echo "  - Never commit secrets to version control"
+echo "  - Press Enter on empty input to SKIP a provider (dummy secret will be created)"
+echo "  - Telegram bot token is REQUIRED (cannot skip)"
 echo ""
 read -p "Press Enter to continue..."
 echo ""
@@ -163,44 +175,64 @@ echo ""
 log_step "1/5: Anthropic API Key (Claude 3.5 Sonnet)"
 echo "Get your key from: https://console.anthropic.com/settings/keys"
 echo "Format: sk-ant-..."
-ANTHROPIC_KEY=$(read_secret "Enter Anthropic API Key" validate_anthropic_key)
-echo "${ANTHROPIC_KEY}" > "${SECRETS_DIR}/anthropic_api_key.txt"
+ANTHROPIC_KEY=$(read_secret "Enter Anthropic API Key" validate_anthropic_key true)
+if [[ "${ANTHROPIC_KEY}" == "SKIP" ]]; then
+    log_warn "⊘ Skipping Anthropic - creating dummy secret"
+    echo "sk-ant-dummy-not-used-anthropic-key-placeholder-value-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" > "${SECRETS_DIR}/anthropic_api_key.txt"
+else
+    echo "${ANTHROPIC_KEY}" > "${SECRETS_DIR}/anthropic_api_key.txt"
+    log_info "✓ Anthropic API key saved"
+fi
 chmod 600 "${SECRETS_DIR}/anthropic_api_key.txt"
-log_info "✓ Anthropic API key saved"
 echo ""
 
 log_step "2/5: OpenAI API Key (GPT-4o, o1)"
 echo "Get your key from: https://platform.openai.com/api-keys"
 echo "Format: sk-... or sk-proj-..."
-OPENAI_KEY=$(read_secret "Enter OpenAI API Key" validate_openai_key)
-echo "${OPENAI_KEY}" > "${SECRETS_DIR}/openai_api_key.txt"
+OPENAI_KEY=$(read_secret "Enter OpenAI API Key" validate_openai_key true)
+if [[ "${OPENAI_KEY}" == "SKIP" ]]; then
+    log_warn "⊘ Skipping OpenAI - creating dummy secret"
+    echo "sk-dummy-not-used-openai-key-placeholder-value-1234567890" > "${SECRETS_DIR}/openai_api_key.txt"
+else
+    echo "${OPENAI_KEY}" > "${SECRETS_DIR}/openai_api_key.txt"
+    log_info "✓ OpenAI API key saved"
+fi
 chmod 600 "${SECRETS_DIR}/openai_api_key.txt"
-log_info "✓ OpenAI API key saved"
 echo ""
 
 log_step "3/5: Google API Key (Gemini 2.0 Flash)"
 echo "Get your key from: https://aistudio.google.com/app/apikey"
 echo "Format: AIza..."
-GOOGLE_KEY=$(read_secret "Enter Google API Key" validate_google_key)
-echo "${GOOGLE_KEY}" > "${SECRETS_DIR}/google_api_key.txt"
+GOOGLE_KEY=$(read_secret "Enter Google API Key" validate_google_key true)
+if [[ "${GOOGLE_KEY}" == "SKIP" ]]; then
+    log_warn "⊘ Skipping Google - creating dummy secret"
+    echo "AIzadummy-not-used-google-key-placeholder-value-12345678901234567890" > "${SECRETS_DIR}/google_api_key.txt"
+else
+    echo "${GOOGLE_KEY}" > "${SECRETS_DIR}/google_api_key.txt"
+    log_info "✓ Google API key saved"
+fi
 chmod 600 "${SECRETS_DIR}/google_api_key.txt"
-log_info "✓ Google API key saved"
 echo ""
 
 log_step "4/5: Moonshot API Key (Kimi-k2)"
 echo "Get your key from: https://platform.moonshot.cn/console/api-keys"
 echo "Format: sk-..."
-MOONSHOT_KEY=$(read_secret "Enter Moonshot API Key" validate_moonshot_key)
-echo "${MOONSHOT_KEY}" > "${SECRETS_DIR}/moonshot_api_key.txt"
+MOONSHOT_KEY=$(read_secret "Enter Moonshot API Key" validate_moonshot_key true)
+if [[ "${MOONSHOT_KEY}" == "SKIP" ]]; then
+    log_warn "⊘ Skipping Moonshot - creating dummy secret"
+    echo "sk-dummy-not-used-moonshot-key-placeholder-value-1234567890" > "${SECRETS_DIR}/moonshot_api_key.txt"
+else
+    echo "${MOONSHOT_KEY}" > "${SECRETS_DIR}/moonshot_api_key.txt"
+    log_info "✓ Moonshot API key saved"
+fi
 chmod 600 "${SECRETS_DIR}/moonshot_api_key.txt"
-log_info "✓ Moonshot API key saved"
 echo ""
 
-log_step "5/5: Telegram Bot Token"
+log_step "5/5: Telegram Bot Token (REQUIRED)"
 echo "Get your token from: @BotFather on Telegram"
 echo "Run: /newbot and copy the token"
 echo "Format: 123456789:ABC..."
-TELEGRAM_TOKEN=$(read_secret "Enter Telegram Bot Token" validate_telegram_token)
+TELEGRAM_TOKEN=$(read_secret "Enter Telegram Bot Token" validate_telegram_token false)
 echo "${TELEGRAM_TOKEN}" > "${SECRETS_DIR}/telegram_bot_token.txt"
 chmod 600 "${SECRETS_DIR}/telegram_bot_token.txt"
 log_info "✓ Telegram bot token saved"
