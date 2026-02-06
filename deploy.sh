@@ -43,20 +43,26 @@ else
 fi
 
 # Deploy image based on source
-
 if [[ "${USE_DOCKERHUB}" == "true" ]]; then
     echo ""
     echo "Pulling Docker image from Docker Hub..."
-    docker pull "${DOCKERHUB_IMAGE}"
-    docker tag "${DOCKERHUB_IMAGE}" openclaw:secure
-    echo "✓ Image pulled from Docker Hub"
-elif ! docker images | grep -q "openclaw.*secure"; then
-    echo ""
-    echo "Building Docker image locally..."
-    docker build -t openclaw:secure .
-    echo "✓ Image built"
+    if docker pull "${DOCKERHUB_IMAGE}"; then
+        docker tag "${DOCKERHUB_IMAGE}" openclaw:secure
+        echo "✓ Image pulled from Docker Hub: ${DOCKERHUB_IMAGE}"
+    else
+        echo "Error: Failed to pull ${DOCKERHUB_IMAGE}"
+        echo "Available tags at: https://hub.docker.com/r/${DOCKERHUB_USER}/openclaw/tags"
+        exit 1
+    fi
 else
-    echo "✓ Docker image exists"
+    if ! docker images | grep -q "openclaw.*secure"; then
+        echo ""
+        echo "Building Docker image locally..."
+        docker build -t openclaw:secure .
+        echo "✓ Image built locally"
+    else
+        echo "✓ Using existing local Docker image"
+    fi
 fi
 
 # Create necessary directories
