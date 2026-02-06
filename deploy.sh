@@ -14,6 +14,9 @@ echo "════════════════════════�
 echo "   OpenClaw Quick Deploy"
 echo "═══════════════════════════════════════════════════════════════════"
 echo ""
+echo "Environment variables:"
+echo "  USE_DOCKERHUB=${USE_DOCKERHUB:-false} (Set to 'true' to pull from Docker Hub)"
+echo ""
 
 # Check if Docker is running
 if ! docker ps &>/dev/null; then
@@ -33,11 +36,21 @@ else
     echo "✓ Secrets already initialized"
 fi
 
-# Check if Docker image exists
-if ! docker images | grep -q "openclaw.*secure"; then
+# Check if we should use Docker Hub image or build locally
+USE_DOCKERHUB=${USE_DOCKERHUB:-false}
+DOCKERHUB_IMAGE="vladislav2502/openclaw:secure"
+
+if [[ "${USE_DOCKERHUB}" == "true" ]]; then
     echo ""
-    echo "Building Docker image..."
+    echo "Pulling Docker image from Docker Hub..."
+    docker pull "${DOCKERHUB_IMAGE}"
+    docker tag "${DOCKERHUB_IMAGE}" openclaw:secure
+    echo "✓ Image pulled from Docker Hub"
+elif ! docker images | grep -q "openclaw.*secure"; then
+    echo ""
+    echo "Building Docker image locally..."
     docker build -t openclaw:secure .
+    echo "✓ Image built"
 else
     echo "✓ Docker image exists"
 fi
