@@ -6,7 +6,7 @@ Production-ready deployment configuration for OpenClaw with enterprise-grade sec
 
 This repository provides a complete, security-hardened deployment solution for OpenClaw featuring:
 
-- **Multi-LLM Intelligence**: Claude 3.5 Sonnet (primary), Gemini 2.0 Flash (speed/vision), OpenAI o1 (reasoning)
+- **Multi-LLM Intelligence**: Kimi-k2 (primary, 128K context), Claude 3.5 Sonnet, Gemini 2.0 Flash (speed/vision), OpenAI o1 (reasoning)
 - **Security First**: Docker rootless mode, gVisor isolation, read-only filesystems, capability dropping
 - **Zero-Trust Secrets**: Docker Secrets with 90-day rotation, encrypted storage, expiry tracking
 - **Telegram Integration**: Pairing-mode authentication, webhook support, mention-based group control
@@ -26,6 +26,14 @@ This repository provides a complete, security-hardened deployment solution for O
 - [Maintenance](#maintenance)
 - [Troubleshooting](#troubleshooting)
 
+## 📚 Additional Guides
+
+- **[SKIP-STEPS-GUIDE.md](SKIP-STEPS-GUIDE.md)** - How to skip setup steps and minimal installation
+- **[KIMI-K2-INTEGRATION.md](KIMI-K2-INTEGRATION.md)** - Kimi-k2 model integration details
+- **[QUICK-REFERENCE.txt](QUICK-REFERENCE.txt)** - Command cheat sheet and quick reference
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Comprehensive deployment guide
+- **[SECURITY.md](SECURITY.md)** - Security hardening and best practices
+
 ## ✅ Prerequisites
 
 ### Ubuntu Server
@@ -42,6 +50,7 @@ This repository provides a complete, security-hardened deployment solution for O
 - Administrator access
 
 ### API Keys Required
+- **Moonshot API Key** - Get from [platform.moonshot.cn](https://platform.moonshot.cn/console/api-keys) (Primary - Kimi-k2)
 - **Anthropic API Key** - Get from [console.anthropic.com](https://console.anthropic.com/settings/keys)
 - **OpenAI API Key** - Get from [platform.openai.com](https://platform.openai.com/api-keys)
 - **Google API Key** - Get from [aistudio.google.com](https://aistudio.google.com/app/apikey)

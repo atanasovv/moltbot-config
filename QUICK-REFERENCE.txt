@@ -1,0 +1,208 @@
+┌─────────────────────────────────────────────────────────────────┐
+│            OPENCLAW KIMI-K2 QUICK REFERENCE                     │
+└─────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🚀 QUICK START (5 Minutes)                                   ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  1. Get Moonshot API Key
+     → https://platform.moonshot.cn/console/api-keys
+     → Format: sk-...
+
+  2. Initialize Secrets
+     ./init-secrets.sh
+     
+  3. Deploy
+     ./deploy.sh
+
+  4. Test
+     Message your Telegram bot!
+
+╔═══════════════════════════════════════════════════════════════╗
+║  ⏭️  SKIP SETUP STEPS                                         ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Already have Docker?
+  ├─ Skip: ./setup-ubuntu.sh or ./setup-macos.sh
+  └─ Run:  ./init-secrets.sh && ./deploy.sh
+
+  Only want Kimi-k2?
+  ├─ See: SKIP-STEPS-GUIDE.md → Option 4
+  └─ TL;DR: Create dummy secrets for unused providers
+
+  Setup script is IDEMPOTENT!
+  └─ Safe to re-run, skips existing components
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🔑 SECRETS REQUIRED                                          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  All secrets must exist (use dummy values if not using):
+
+  ✅ moonshot_api_key.txt    → sk-your-real-key (REQUIRED)
+  ✅ telegram_bot_token.txt  → 123456789:ABC... (REQUIRED)
+  ⚠️  anthropic_api_key.txt  → sk-ant-dummy... (dummy ok)
+  ⚠️  openai_api_key.txt     → sk-dummy... (dummy ok)
+  ⚠️  google_api_key.txt     → AIzadummy... (dummy ok)
+
+  Create dummy secrets:
+  $ echo "sk-ant-dummy-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" > secrets/anthropic_api_key.txt
+  $ echo "sk-dummy-not-used-12345678901234567890" > secrets/openai_api_key.txt
+  $ echo "AIzadummy-not-used-1234567890123456789" > secrets/google_api_key.txt
+
+╔═══════════════════════════════════════════════════════════════╗
+║  📝 CONFIGURATION                                             ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Primary Model: Kimi-k2 (128K context)
+  ├─ File: config/openclaw.json
+  ├─ "primary": "moonshot/kimi-k2"
+  └─ Context: 128,000 tokens
+
+  Switch Models:
+  └─ Edit config/openclaw.json → change "primary"
+     Options: moonshot/kimi-k2, anthropic/claude-sonnet-4-5,
+              openai/gpt-4o, google/gemini-2.0-flash
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🛠️  COMMON COMMANDS                                          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Deploy/Start:
+  $ ./deploy.sh [version]
+  $ USE_DOCKERHUB=true ./deploy.sh v1.0.0
+
+  Manage:
+  $ docker compose ps                  # Status
+  $ docker compose logs -f openclaw    # Logs
+  $ docker compose restart openclaw    # Restart
+  $ docker compose down                # Stop
+
+  Secrets:
+  $ ./init-secrets.sh                  # Initialize
+  $ ./rotate-secrets.sh --all          # Rotate all
+  $ ./check-secret-expiry.sh           # Check expiry
+
+  Build:
+  $ docker build -t openclaw:secure .           # Local
+  $ ./build-remote.sh --push --tag v1.0.0      # Remote
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🎯 MINIMAL SETUP (Kimi-k2 Only)                              ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  1. Install Docker
+     Ubuntu: curl -fsSL https://get.docker.com | sh
+     macOS:  brew install --cask docker
+
+  2. Create Structure
+     $ mkdir -p ~/.openclaw/{config,workspace,logs,secrets}
+
+  3. Get Files (from this repo)
+     $ cp config/openclaw.json ~/.openclaw/config/
+     $ cp docker-compose.yml ~/.openclaw/
+     $ cp Dockerfile ~/.openclaw/
+
+  4. Create Secrets
+     $ cd ~/.openclaw
+     $ # Create dummy secrets (see above)
+     $ # Add real Moonshot and Telegram keys
+
+  5. Deploy
+     $ ./deploy.sh
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🔧 SKIP OPTIONAL COMPONENTS                                  ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Component      | Required? | How to Skip
+  ───────────────┼───────────┼────────────────────────────────
+  Docker         | YES       | Cannot skip
+  gVisor         | NO        | Change runtime: runsc → runc
+  Node.js        | NO        | Only for local dev
+  UFW Firewall   | NO        | Skip in setup script
+  fail2ban       | NO        | Skip in setup script
+  Tailscale      | NO        | Skip in setup script
+  Monitoring     | NO        | Don't start monitoring stack
+  git-crypt      | NO        | Skip in setup script
+
+  Edit docker-compose.yml to skip gVisor:
+  # runtime: runsc  ← Comment out
+  runtime: runc     ← Use standard runtime
+
+╔═══════════════════════════════════════════════════════════════╗
+║  ⚠️  TROUBLESHOOTING                                          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Error: secret 'X' not found
+  → Create secret file even if not using (dummy value ok)
+
+  Error: gVisor runtime not found
+  → Run ./setup-ubuntu.sh OR edit docker-compose.yml
+
+  Error: Permission denied
+  → sudo usermod -aG docker $USER && newgrp docker
+
+  Kimi-k2 not responding
+  → Check: docker compose logs openclaw
+  → Verify: Moonshot API key is correct
+  → Test: curl -H "Authorization: Bearer sk-..." \
+            https://api.moonshot.cn/v1/models
+
+╔═══════════════════════════════════════════════════════════════╗
+║  📚 DOCUMENTATION FILES                                       ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  README.md                 → Overview and features
+  DEPLOYMENT.md             → Full deployment guide
+  SECURITY.md               → Security best practices
+  SKIP-STEPS-GUIDE.md       → How to skip setup steps (NEW!)
+  KIMI-K2-INTEGRATION.md    → Kimi-k2 integration details (NEW!)
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🌟 KIMI-K2 FEATURES                                          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Context Window: 128,000 tokens
+  Languages:      Chinese + English
+  Reasoning:      Enabled
+  Best For:       Long documents, complex reasoning
+  API Endpoint:   https://api.moonshot.cn/v1
+  Model ID:       moonshot-v1-128k
+
+╔═══════════════════════════════════════════════════════════════╗
+║  📊 MONITORING & COSTS                                        ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Start Monitoring:
+  $ docker compose -f monitoring/docker-compose.monitoring.yml up -d
+
+  Access:
+  └─ Grafana:     http://localhost:3000 (admin/admin)
+  └─ Prometheus:  http://localhost:9090
+  └─ Alerts:      http://localhost:9093
+
+  Track Costs:
+  └─ Real-time usage in Grafana dashboard
+  └─ Per-model cost breakdown
+  └─ Budget alerts at 80% threshold
+
+╔═══════════════════════════════════════════════════════════════╗
+║  🔄 SECRET ROTATION (90-Day Policy)                           ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Check Status:
+  $ ./check-secret-expiry.sh
+
+  Rotate All:
+  $ ./rotate-secrets.sh --all
+
+  Rotate One:
+  $ ./rotate-secrets.sh --secret-name moonshot_api_key
+
+  Zero-downtime rotation with automatic backup!
+
+└─────────────────────────────────────────────────────────────────┘
+     Need help? Check SKIP-STEPS-GUIDE.md for detailed examples
+└─────────────────────────────────────────────────────────────────┘

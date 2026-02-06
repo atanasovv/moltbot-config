@@ -89,6 +89,11 @@ validate_telegram_token() {
     [[ "${token}" =~ ^[0-9]{8,10}:[a-zA-Z0-9_-]{35}$ ]]
 }
 
+validate_moonshot_key() {
+    local key="$1"
+    [[ "${key}" =~ ^sk-[a-zA-Z0-9]{32,}$ ]]
+}
+
 ################################################################################
 # Read Secret Function
 ################################################################################
@@ -266,6 +271,7 @@ if [[ "${ROTATE_ALL}" == "false" && -z "${SPECIFIC_SECRET}" ]]; then
         echo "  - anthropic_api_key"
         echo "  - openai_api_key"
         echo "  - google_api_key"
+        echo "  - moonshot_api_key"
         echo "  - telegram_bot_token"
         echo ""
         read -p "Enter secret name to rotate: " SPECIFIC_SECRET
@@ -301,6 +307,11 @@ if [[ "${ROTATE_ALL}" == "true" ]]; then
         "Google API Key"
     echo ""
     
+    rotate_secret "moonshot_api_key" "validate_moonshot_key" \
+        "Get from: https://platform.moonshot.cn/console/api-keys\nFormat: sk-..." \
+        "Moonshot API Key (Kimi-k2)"
+    echo ""
+    
     rotate_secret "telegram_bot_token" "validate_telegram_token" \
         "Get from: @BotFather on Telegram\nFormat: 123456789:ABC..." \
         "Telegram Bot Token"
@@ -329,6 +340,10 @@ elif [[ -n "${SPECIFIC_SECRET}" ]]; then
         google_api_key)
             rotate_secret "google_api_key" "validate_google_key" \
                 "Format: AIza..." "Google API Key"
+            ;;
+        moonshot_api_key)
+            rotate_secret "moonshot_api_key" "validate_moonshot_key" \
+                "Format: sk-..." "Moonshot API Key (Kimi-k2)"
             ;;
         telegram_bot_token)
             rotate_secret "telegram_bot_token" "validate_telegram_token" \

@@ -86,6 +86,15 @@ validate_telegram_token() {
     return 0
 }
 
+validate_moonshot_key() {
+    local key="$1"
+    # Moonshot API keys format: sk-...
+    if [[ ! "${key}" =~ ^sk-[a-zA-Z0-9]{32,}$ ]]; then
+        return 1
+    fi
+    return 0
+}
+
 ################################################################################
 # Secret Input Function
 ################################################################################
@@ -151,7 +160,7 @@ echo ""
 # Collect API Keys
 ################################################################################
 
-log_step "1/4: Anthropic API Key (Claude 3.5 Sonnet)"
+log_step "1/5: Anthropic API Key (Claude 3.5 Sonnet)"
 echo "Get your key from: https://console.anthropic.com/settings/keys"
 echo "Format: sk-ant-..."
 ANTHROPIC_KEY=$(read_secret "Enter Anthropic API Key" validate_anthropic_key)
@@ -160,7 +169,7 @@ chmod 600 "${SECRETS_DIR}/anthropic_api_key.txt"
 log_info "✓ Anthropic API key saved"
 echo ""
 
-log_step "2/4: OpenAI API Key (GPT-4o, o1)"
+log_step "2/5: OpenAI API Key (GPT-4o, o1)"
 echo "Get your key from: https://platform.openai.com/api-keys"
 echo "Format: sk-... or sk-proj-..."
 OPENAI_KEY=$(read_secret "Enter OpenAI API Key" validate_openai_key)
@@ -169,7 +178,7 @@ chmod 600 "${SECRETS_DIR}/openai_api_key.txt"
 log_info "✓ OpenAI API key saved"
 echo ""
 
-log_step "3/4: Google API Key (Gemini 2.0 Flash)"
+log_step "3/5: Google API Key (Gemini 2.0 Flash)"
 echo "Get your key from: https://aistudio.google.com/app/apikey"
 echo "Format: AIza..."
 GOOGLE_KEY=$(read_secret "Enter Google API Key" validate_google_key)
@@ -178,7 +187,16 @@ chmod 600 "${SECRETS_DIR}/google_api_key.txt"
 log_info "✓ Google API key saved"
 echo ""
 
-log_step "4/4: Telegram Bot Token"
+log_step "4/5: Moonshot API Key (Kimi-k2)"
+echo "Get your key from: https://platform.moonshot.cn/console/api-keys"
+echo "Format: sk-..."
+MOONSHOT_KEY=$(read_secret "Enter Moonshot API Key" validate_moonshot_key)
+echo "${MOONSHOT_KEY}" > "${SECRETS_DIR}/moonshot_api_key.txt"
+chmod 600 "${SECRETS_DIR}/moonshot_api_key.txt"
+log_info "✓ Moonshot API key saved"
+echo ""
+
+log_step "5/5: Telegram Bot Token"
 echo "Get your token from: @BotFather on Telegram"
 echo "Run: /newbot and copy the token"
 echo "Format: 123456789:ABC..."
