@@ -4,34 +4,51 @@ set -euo pipefail
 ################################################################################
 # OpenClaw Quick Deploy Script
 # 
-# One-command deployment for OpenClaw with all components
+# Usage:
+#   ./deploy.sh [version]
+#   USE_DOCKERHUB=true ./deploy.sh [version]
+#
+# Examples:
+#   ./deploy.sh                    # Build locally and deploy
+#   USE_DOCKERHUB=true ./deploy.sh # Pull latest from Docker Hub
+#   USE_DOCKERHUB=true ./deploy.sh v1.2.3  # Pull specific version
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
+# Parse arguments
+IMAGE_VERSION="${1:-secure}"
+USE_DOCKERHUB=${USE_DOCKERHUB:-false}
+DOCKERHUB_USER="vladislav2502"
+DOCKERHUB_IMAGE="${DOCKERHUB_USER}/openclaw:${IMAGE_VERSION}"
+
 echo "═══════════════════════════════════════════════════════════════════"
 echo "   OpenClaw Quick Deploy"
 echo "═══════════════════════════════════════════════════════════════════"
 echo ""
-echo "Environment variables:"
-echo "  USE_DOCKERHUB=${USE_DOCKERHUB:-false} (Set to 'true' to pull from Docker Hub)"
+echo "Configuration:"
+echo "  Source:  ${USE_DOCKERHUB}"
+echo "  Image:   ${DOCKERHUB_IMAGE}"
+echo "  Version: ${IMAGE_VERSION}"
 echo ""
 
-# Check if Docker is running
-if ! docker ps &>/dev/null; then
-    echo "Error: Docker is not running."
-    echo "Please start Docker Desktop (macOS) or Docker service (Ubuntu)"
-    exit 1
+# Checho "✓ Secrets already initialized"
 fi
 
-echo "✓ Docker is running"
-
-# Check if secrets are initialized
-if [[ ! -f secrets/.initialized ]]; then
+# Deploy image based on source
+if [[ "${USE_DOCKERHUB}" == "true" ]]; then
     echo ""
-    echo "Secrets not initialized. Running init-secrets.sh..."
-    ./init-secrets.sh
+    echo "Pulling Docker image from Docker Hub..."
+    if docker pull "${DOCKERHUB_IMAGE}"; then
+        docker tag "${DOCKERHUB_IMAGE}" openclaw:secure
+        echo "✓ Image pulled: ${DOCKERHUB_IMAGE}"
+    else
+        echo "Error: Failed to pull ${DOCKERHUB_IMAGE}"
+        echo "Available tags at: https://hub.docker.com/r/${DOCKERHUB_USER}/openclaw/tags"
+        exit 1
+    fi
+elif ! docker images | grep -q "openclaw.*secure"; then
 else
     echo "✓ Secrets already initialized"
 fi

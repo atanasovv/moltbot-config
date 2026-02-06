@@ -186,16 +186,50 @@ check_docker_installed() {
 }
 
 ################################################################################
-# Git configuration helpers
+# Final summary display
 ################################################################################
 
-install_git_crypt() {
-    local install_cmd="$1"
-    
-    if check_command_exists git-crypt; then
-        log_warn "git-crypt already installed: $(git-crypt --version)"
-    else
-        eval "$install_cmd"
-        log_info "git-crypt installed"
-    fi
+show_ubuntu_next_steps() {
+    echo ""
+    echo "Next steps:"
+    echo "  1. Connect to Tailscale: sudo tailscale up"
+    echo "  2. From your local machine, build and push to Docker Hub:"
+    echo "     ./build-remote.sh --push --tag v1.0.0"
+    echo "  3. Deploy on this server from Docker Hub:"
+    echo "     USE_DOCKERHUB=true ./deploy.sh v1.0.0"
+    echo "  Or deploy latest:"
+    echo "     USE_DOCKERHUB=true ./deploy.sh"
+    echo ""
+    echo "Manual deployment:"
+    echo "  rsync -avz ./ vaki-lenovo:~/openclaw/"
+    echo "  ssh vaki-lenovo 'cd ~/openclaw && ./init-secrets.sh && USE_DOCKERHUB=true ./deploy.sh'"
+    echo ""
+    echo "Security notes:"
+    echo "  - Docker runs in rootless mode (non-root user)"
+    echo "  - gVisor provides kernel-level isolation"
+    echo "  - Firewall blocks all ports except SSH (22) and Tailscale (41641)"
+    echo "  - fail2ban protects against SSH brute-force attacks"
+    echo "  - System will auto-update security patches"
 }
+
+show_macos_next_steps() {
+    local openclaw_dir="$1"
+    
+    echo ""
+    echo "Next steps:"
+    echo "  1. Ensure Docker Desktop is running"
+    echo "  2. Connect to Tailscale (if needed)"
+    echo "  3. For local development:"
+    echo "     cd ${openclaw_dir}"
+    echo "     ./init-secrets.sh"
+    echo "     ./deploy.sh"
+    echo "  4. For remote deployment:"
+    echo "     ./build-remote.sh --push --tag v1.0.0"
+    echo ""
+    echo "Development notes:"
+    echo "  - Use Docker Desktop for container management"
+    echo "  - git-crypt available for encrypting secrets in Git"
+    echo "  - Tailscale provides secure access to remote servers"
+    echo "  - All development files in: ${openclaw_dir}"
+}
+
